@@ -1,0 +1,423 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "API Generica PHP",
+    "description": "API REST generica para operaciones CRUD sobre cualquier tabla MySQL/MariaDB.\n\nEquivalente PHP de ApiGenericaCsharp. Un solo controlador maneja TODAS las tablas via /api/{tabla}.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Servidor de desarrollo PHP"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "tags": ["General"],
+        "summary": "Bienvenida",
+        "description": "Pagina de bienvenida con guia rapida de uso",
+        "responses": {
+          "200": {
+            "description": "Informacion de bienvenida",
+            "content": {
+              "application/json": {
+                "example": {
+                  "Mensaje": "Bienvenido a la API Generica en PHP",
+                  "Version": "1.0"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/info": {
+      "get": {
+        "tags": ["General"],
+        "summary": "Informacion del controlador",
+        "description": "Lista todos los endpoints disponibles con ejemplos de uso",
+        "responses": {
+          "200": {
+            "description": "Informacion del controlador y endpoints disponibles"
+          }
+        }
+      }
+    },
+    "/api/{tabla}": {
+      "get": {
+        "tags": ["Entidades - CRUD Generico"],
+        "summary": "Listar registros de cualquier tabla",
+        "description": "Devuelve todos los registros de la tabla especificada. Funciona con CUALQUIER tabla de la base de datos sin necesidad de crear controladores especificos.\n\nEjemplos:\n- /api/cliente\n- /api/producto\n- /api/factura\n- /api/vendedor\n- /api/persona",
+        "parameters": [
+          {
+            "name": "tabla",
+            "in": "path",
+            "required": true,
+            "description": "Nombre de la tabla a consultar",
+            "schema": { "type": "string" },
+            "examples": {
+              "cliente": { "value": "cliente" },
+              "producto": { "value": "producto" },
+              "factura": { "value": "factura" },
+              "vendedor": { "value": "vendedor" },
+              "persona": { "value": "persona" }
+            }
+          },
+          {
+            "name": "esquema",
+            "in": "query",
+            "required": false,
+            "description": "Esquema de la base de datos (opcional, MySQL no usa esquemas por defecto)",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "description": "Maximo de registros a devolver (por defecto 1000)",
+            "schema": { "type": "integer", "default": 1000 },
+            "examples": {
+              "pocos": { "value": 5, "summary": "Solo 5 registros" },
+              "medio": { "value": 50, "summary": "50 registros" }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registros encontrados",
+            "content": {
+              "application/json": {
+                "example": {
+                  "tabla": "cliente",
+                  "esquema": "por defecto",
+                  "limite": 3,
+                  "total": 3,
+                  "datos": [
+                    {"id": 1, "credito": "520000.00", "fkcodpersona": "P001", "fkcodempresa": "E001"}
+                  ]
+                }
+              }
+            }
+          },
+          "204": { "description": "Tabla vacia — no hay registros" },
+          "400": { "description": "Parametros invalidos" },
+          "403": { "description": "Tabla restringida (prohibida en config.php)" },
+          "404": { "description": "Tabla no existe en la base de datos" },
+          "500": { "description": "Error interno del servidor" }
+        }
+      },
+      "post": {
+        "tags": ["Entidades - CRUD Generico"],
+        "summary": "Crear un nuevo registro",
+        "description": "Inserta un nuevo registro en la tabla especificada. Los datos se envian como JSON en el body.\n\nPara encriptar campos (ej: contrasenas), usar el query param camposEncriptar.",
+        "parameters": [
+          {
+            "name": "tabla",
+            "in": "path",
+            "required": true,
+            "description": "Nombre de la tabla donde insertar",
+            "schema": { "type": "string" },
+            "examples": {
+              "producto": { "value": "producto" },
+              "usuario": { "value": "usuario" }
+            }
+          },
+          {
+            "name": "esquema",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "camposEncriptar",
+            "in": "query",
+            "required": false,
+            "description": "Campos a encriptar con BCrypt, separados por coma (ej: contrasena,pin)",
+            "schema": { "type": "string" },
+            "example": "contrasena"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "examples": {
+                "producto": {
+                  "summary": "Crear producto",
+                  "value": {
+                    "codigo": "PR_NUEVO",
+                    "nombre": "Producto Nuevo",
+                    "stock": 50,
+                    "valorunitario": 25000.00
+                  }
+                },
+                "usuario": {
+                  "summary": "Crear usuario con contrasena encriptada (usar ?camposEncriptar=contrasena)",
+                  "value": {
+                    "nombre": "Juan Perez",
+                    "email": "juan@email.com",
+                    "contrasena": "123456"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registro creado exitosamente",
+            "content": {
+              "application/json": {
+                "example": {
+                  "estado": 200,
+                  "mensaje": "Registro creado exitosamente.",
+                  "tabla": "producto",
+                  "esquema": "por defecto"
+                }
+              }
+            }
+          },
+          "400": { "description": "Datos invalidos o body vacio" },
+          "403": { "description": "Tabla restringida" },
+          "500": { "description": "Error interno del servidor" }
+        }
+      }
+    },
+    "/api/{tabla}/{nombreClave}/{valor}": {
+      "get": {
+        "tags": ["Entidades - CRUD Generico"],
+        "summary": "Obtener registros por clave",
+        "description": "Filtra registros donde la columna {nombreClave} sea igual a {valor}.\n\nEjemplos:\n- /api/cliente/id/1\n- /api/producto/codigo/PR001\n- /api/factura/numero/1",
+        "parameters": [
+          {
+            "name": "tabla",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "example": "producto"
+          },
+          {
+            "name": "nombreClave",
+            "in": "path",
+            "required": true,
+            "description": "Nombre de la columna para filtrar",
+            "schema": { "type": "string" },
+            "example": "codigo"
+          },
+          {
+            "name": "valor",
+            "in": "path",
+            "required": true,
+            "description": "Valor a buscar en la columna",
+            "schema": { "type": "string" },
+            "example": "PR001"
+          },
+          {
+            "name": "esquema",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registros encontrados",
+            "content": {
+              "application/json": {
+                "example": {
+                  "tabla": "producto",
+                  "esquema": "por defecto",
+                  "filtro": "codigo = PR001",
+                  "total": 1,
+                  "datos": [
+                    {"codigo": "PR001", "nombre": "Laptop Lenovo IdeaPad", "stock": 15, "valorunitario": "2500000.00"}
+                  ]
+                }
+              }
+            }
+          },
+          "404": { "description": "No se encontraron registros con esa clave" },
+          "400": { "description": "Parametros invalidos" },
+          "403": { "description": "Tabla restringida" }
+        }
+      },
+      "put": {
+        "tags": ["Entidades - CRUD Generico"],
+        "summary": "Actualizar un registro",
+        "description": "Actualiza las columnas del registro donde {nombreClave} = {valor}.\n\nEjemplo: PUT /api/producto/codigo/PR001 con body {\"stock\": 99}",
+        "parameters": [
+          {
+            "name": "tabla",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "example": "producto"
+          },
+          {
+            "name": "nombreClave",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "example": "codigo"
+          },
+          {
+            "name": "valor",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "example": "PR001"
+          },
+          {
+            "name": "esquema",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "camposEncriptar",
+            "in": "query",
+            "required": false,
+            "description": "Campos a encriptar con BCrypt",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "nombre": "Producto Actualizado",
+                "stock": 99
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registro actualizado exitosamente",
+            "content": {
+              "application/json": {
+                "example": {
+                  "estado": 200,
+                  "mensaje": "Registro actualizado exitosamente.",
+                  "tabla": "producto",
+                  "filtro": "codigo = PR001",
+                  "filasAfectadas": 1
+                }
+              }
+            }
+          },
+          "404": { "description": "No se encontro el registro a actualizar" },
+          "400": { "description": "Datos invalidos o body vacio" },
+          "403": { "description": "Tabla restringida" }
+        }
+      },
+      "delete": {
+        "tags": ["Entidades - CRUD Generico"],
+        "summary": "Eliminar un registro",
+        "description": "Elimina el registro donde {nombreClave} = {valor}.\n\nEjemplo: DELETE /api/producto/codigo/PR_TEST",
+        "parameters": [
+          {
+            "name": "tabla",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "example": "producto"
+          },
+          {
+            "name": "nombreClave",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "example": "codigo"
+          },
+          {
+            "name": "valor",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "example": "PR_TEST"
+          },
+          {
+            "name": "esquema",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registro eliminado exitosamente",
+            "content": {
+              "application/json": {
+                "example": {
+                  "estado": 200,
+                  "mensaje": "Registro eliminado exitosamente.",
+                  "filasEliminadas": 1
+                }
+              }
+            }
+          },
+          "404": { "description": "No se encontro el registro a eliminar" },
+          "403": { "description": "Tabla restringida" },
+          "409": { "description": "No se puede eliminar — restriccion de clave foranea" }
+        }
+      }
+    },
+    "/api/{tabla}/verificar-contrasena": {
+      "post": {
+        "tags": ["Autenticacion"],
+        "summary": "Verificar credenciales de usuario",
+        "description": "Compara una contrasena en texto plano contra el hash BCrypt almacenado en la base de datos.\n\nRequiere 4 parametros en el body JSON.",
+        "parameters": [
+          {
+            "name": "tabla",
+            "in": "path",
+            "required": true,
+            "description": "Tabla que contiene los usuarios",
+            "schema": { "type": "string" },
+            "example": "usuario"
+          },
+          {
+            "name": "esquema",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "campoUsuario": "email",
+                "campoContrasena": "contrasena",
+                "valorUsuario": "admin@email.com",
+                "valorContrasena": "123456"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credenciales validas",
+            "content": {
+              "application/json": {
+                "example": {
+                  "estado": 200,
+                  "mensaje": "Credenciales verificadas exitosamente.",
+                  "usuario": "admin@email.com",
+                  "autenticado": true
+                }
+              }
+            }
+          },
+          "401": { "description": "Contrasena incorrecta" },
+          "404": { "description": "Usuario no encontrado" },
+          "400": { "description": "Parametros faltantes o invalidos" }
+        }
+      }
+    }
+  }
+}

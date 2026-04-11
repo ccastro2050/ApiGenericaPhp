@@ -1,0 +1,12 @@
+# .htaccess — Rewrite rules para Apache (XAMPP)
+# Redirige todas las peticiones a index.php (front controller pattern)
+# Equivalente a app.MapControllers() en ASP.NET Core
+
+RewriteEngine On
+
+# Si el archivo o directorio existe fisicamente, servirlo directamente
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Redirigir todo lo demas a index.php
+RewriteRule ^(.*)$ index.php [QSA,L]
