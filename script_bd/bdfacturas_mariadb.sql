@@ -5,11 +5,11 @@
 -- Equivalente a bdfacturas_sqlserver.sql del proyecto C#
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS bdfacturas_mariadb_local
+--CREATE DATABASE IF NOT EXISTS bdfacturas_mariadb_local
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
 
-USE bdfacturas_mariadb_local;
+--USE bdfacturas_mariadb_local;
 
 -- ============================================================
 -- LIMPIEZA: Eliminar objetos existentes en orden correcto
