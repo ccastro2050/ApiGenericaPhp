@@ -915,6 +915,179 @@ php -m | grep pdo
 
 ---
 
+## Despliegue en InfinityFree (hosting gratuito)
+
+InfinityFree (`infinityfree.com`) ofrece hosting PHP + MySQL gratuito. Soporta PHP 8.0+, MariaDB/MySQL, Apache con mod_rewrite, y phpMyAdmin.
+
+### Por que se necesita un `.htaccess` adicional
+
+En local la API corre con:
+```
+C:\xampp\php\php.exe -S localhost:8000 -t public
+```
+El parametro `-t public` establece `public/` como raiz del servidor. Cualquier URL llega directamente a `public/index.php`.
+
+En InfinityFree no se puede ejecutar ese comando. Apache ya esta corriendo y la raiz es `htdocs/`. Cuando alguien pide `https://dominio/ApiGenericaPhp/api/producto`, Apache busca un archivo o carpeta llamado `api/producto` dentro de `htdocs/ApiGenericaPhp/` — no lo encuentra — y devuelve 404.
+
+La solucion: crear un archivo `.htaccess` en la raiz del proyecto que le diga a Apache que redirija todo a `public/index.php`.
+
+---
+
+### Paso 1 — Crear cuenta en InfinityFree
+
+1. Ir a `infinityfree.com` → **Register**
+2. Verificar el email
+3. En el panel → **Create Account** → asignar un subdominio (ejemplo: `miproyecto.42web.io`)
+4. En el panel → **MySQL Databases** → crear una nueva base de datos
+5. Anotar los datos que entrega InfinityFree: **host**, **database name**, **username**, **password**
+
+---
+
+### Paso 2 — Importar la base de datos via phpMyAdmin
+
+1. En el panel de InfinityFree → **phpMyAdmin**
+2. En el panel izquierdo, seleccionar su base de datos
+3. Pestaña **Importar** → seleccionar el archivo `script_bd/bdfacturas_mariadb.sql`
+4. Clic en **Continuar**
+
+> **Por que no da error el `CREATE DATABASE`:** Las lineas `CREATE DATABASE` y `USE` estan comentadas con `--` al inicio. MySQL ignora todo lo que sigue a `--` en la misma linea. El script solo crea tablas dentro de la base de datos que ya selecciono en el paso anterior.
+
+```sql
+-- Estas lineas estan comentadas (MySQL las ignora):
+-- CREATE DATABASE IF NOT EXISTS bdfacturas_mariadb_local
+--     CHARACTER SET utf8mb4
+--     COLLATE utf8mb4_unicode_ci;
+-- USE bdfacturas_mariadb_local;
+
+-- Estas lineas SI se ejecutan (crean las tablas):
+CREATE TABLE empresa ( ... );
+CREATE TABLE persona ( ... );
+```
+
+---
+
+### Paso 3 — Actualizar `config/config.php`
+
+Editar `config/config.php` con los datos que entrego InfinityFree en el Paso 1:
+
+```php
+'MariaDB' => [
+    'host'     => 'sql200.infinityfree.com', // Host del servidor MySQL de InfinityFree
+    'port'     => 3306,                      // Puerto MySQL (siempre 3306)
+    'database' => 'if0_XXXXXXXX_bdfacturas', // Nombre de su base de datos
+    'username' => 'if0_XXXXXXXX',            // Usuario de su base de datos
+    'password' => 'su_contrasena',           // Contrasena de su base de datos
+    'charset'  => 'utf8mb4',                 // Codificacion (no cambiar)
+],
+```
+
+Y actualizar el origen permitido de CORS:
+
+```php
+'Cors' => [
+    'AllowedOrigins' => 'https://miproyecto.42web.io', // Su dominio en InfinityFree
+    'AllowedMethods' => 'GET, POST, PUT, DELETE, OPTIONS',
+    'AllowedHeaders' => 'Content-Type, Authorization, X-Requested-With',
+],
+```
+
+**Por que cambiar `AllowedOrigins`:** CORS controla que dominios pueden llamar a esta API desde un navegador. En desarrollo usamos `'*'` (cualquiera puede llamar). En produccion se restringe al dominio propio para mayor seguridad.
+
+---
+
+### Paso 4 — Subir la carpeta al File Manager
+
+1. En el panel de InfinityFree → **Online File Manager**
+2. Navegar a `htdocs/`
+3. Clic en **Upload** → seleccionar tipo **Folder** (no usar "Files" ni "Zip & Extract")
+4. Seleccionar la carpeta `ApiGenericaPhp` en su PC
+5. El navegador muestra: "Upload X files to this site?" → clic **Upload**
+
+> **Por que "Folder" y no "Zip & Extract":** InfinityFree bloquea la extraccion de archivos `.php` desde ZIPs como medida de seguridad. La opcion **Folder** usa la API del navegador (`webkitdirectory`) y sube los archivos directamente, sin esa restriccion.
+
+Resultado: los archivos quedan en `htdocs/ApiGenericaPhp/`.
+
+---
+
+### Paso 5 — Crear `.htaccess` manualmente en el File Manager
+
+> **Por que hay que crearlo manualmente:** Los navegadores omiten archivos que empiezan con punto (`.htaccess`, `.env`) al subir carpetas. No hay forma de incluirlos en el upload — hay que crearlos desde el File Manager.
+
+1. En el File Manager, entrar a `htdocs/ApiGenericaPhp/`
+2. Clic en **New File**
+3. Nombre del archivo: `.htaccess` (con el punto al inicio, sin extension)
+4. Pegar este contenido exacto:
+
+```apache
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ public/index.php [QSA,L]
+```
+
+5. Guardar
+
+**Que hace cada linea:**
+
+| Linea | Significado |
+|---|---|
+| `RewriteEngine On` | Activa el motor de reescritura de URLs de Apache |
+| `RewriteCond %{REQUEST_FILENAME} !-f` | Condicion: aplicar la regla solo si lo que piden NO es un archivo que existe fisicamente (el `!` niega) |
+| `RewriteCond %{REQUEST_FILENAME} !-d` | Condicion: aplicar la regla solo si lo que piden NO es una carpeta que existe fisicamente |
+| `RewriteRule ^(.*)$ public/index.php [QSA,L]` | Si las dos condiciones se cumplen, redirigir TODO a `public/index.php` |
+
+Los flags entre corchetes:
+- `QSA` (Query String Append): conserva los parametros de la URL. Sin esto, `?limite=10` se perderia.
+- `L` (Last): indica que esta es la ultima regla. Apache deja de buscar mas reglas.
+
+> **Advertencia importante:** Verificar que no haya ningun caracter antes de `RewriteEngine` en la primera linea. Un caracter invisible (espacio, BOM unicode) hace que Apache no reconozca la directiva y devuelva 404 en todas las rutas.
+
+---
+
+### Paso 6 — Verificar
+
+Abrir en el navegador:
+```
+https://miproyecto.42web.io/ApiGenericaPhp/api/producto
+```
+
+Debe responder JSON con los productos:
+```json
+{
+  "tabla": "producto",
+  "esquema": "por defecto",
+  "limite": null,
+  "total": 8,
+  "datos": [ ... ]
+}
+```
+
+---
+
+### PowerShell: verificar que los archivos esten antes de subir
+
+Antes de subir, se puede verificar que la estructura del proyecto es correcta:
+
+```powershell
+# Listar todos los archivos del proyecto (sin los ocultos como .htaccess)
+# Get-ChildItem = equivalente a 'ls' o 'dir' pero de PowerShell
+# -Recurse    = entrar en todas las subcarpetas recursivamente
+# -File       = solo archivos (no carpetas)
+Get-ChildItem -Recurse -File "C:\xampp\htdocs\ApiGenericaPhp" |
+    Select-Object FullName  # Select-Object = mostrar solo la columna FullName (ruta completa)
+```
+
+```powershell
+# Contar cuantos archivos PHP tiene el proyecto
+# Where-Object = filtrar (equivalente a WHERE en SQL o filter() en JavaScript)
+# $_.Extension = propiedad Extension del archivo actual ($_  = el objeto actual en el pipeline)
+Get-ChildItem -Recurse -File "C:\xampp\htdocs\ApiGenericaPhp" |
+    Where-Object { $_.Extension -eq ".php" } |
+    Measure-Object  # Measure-Object = contar, sumar, promediar — aqui cuenta los archivos
+```
+
+---
+
 ## Licencia
 
 Este proyecto es de uso educativo.
