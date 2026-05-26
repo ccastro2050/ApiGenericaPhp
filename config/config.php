@@ -77,21 +77,20 @@ return [
 
         // Configuracion para MariaDB (la que viene con XAMPP)
         'MariaDB' => [
-            'host'     => 'localhost',              // Direccion del servidor de BD (localhost = esta PC)
-            'port'     => 3306,                     // Puerto donde escucha MariaDB (3306 es el default)
-            'database' => 'bdfacturas_mariadb_local', // Nombre de la base de datos a usar
-            'username' => 'root',                   // Usuario de la BD (root = administrador)
-            'password' => '',                       // Contrasena (vacia en XAMPP por defecto)
-            'charset'  => 'utf8mb4',                // Codificacion (utf8mb4 soporta acentos y emojis)
+            'host'     => 'sql200.infinityfree.com',
+            'port'     => 3306,
+            'database' => 'if0_42024676_bdfacturas',
+            'username' => 'if0_42024676',
+            'password' => '2Y3an3euREfAVK',
+            'charset'  => 'utf8mb4',
         ],
 
-        // Configuracion para MySQL (misma estructura, diferente nombre de BD)
         'MySQL' => [
-            'host'     => 'localhost',
+            'host'     => 'sql200.infinityfree.com',
             'port'     => 3306,
-            'database' => 'bdfacturas_mysql_local',
-            'username' => 'root',
-            'password' => '',
+            'database' => 'if0_42024676_bdfacturas',
+            'username' => 'if0_42024676',
+            'password' => '2Y3an3euREfAVK',
             'charset'  => 'utf8mb4',
         ],
 
@@ -132,7 +131,7 @@ return [
     // AllowedMethods: que verbos HTTP acepta (GET, POST, PUT, DELETE).
     // AllowedHeaders: que headers puede enviar el frontend.
     'Cors' => [
-        'AllowedOrigins' => '*',
+        'AllowedOrigins' => 'https://apigenerica.42web.io',
         'AllowedMethods' => 'GET, POST, PUT, DELETE, OPTIONS',
         'AllowedHeaders' => 'Content-Type, Authorization, X-Requested-With',
     ],
